@@ -25,6 +25,7 @@ type
   published
     [ResourceSuffix('{code_geschaefte}')]
     procedure Get(const AContext: TEndpointContext; const ARequest: TEndpointRequest; const AResponse: TEndpointResponse);
+    [ResourceSuffix('{code_geschaefte}')]
     procedure Post(const AContext: TEndpointContext; const ARequest: TEndpointRequest; const AResponse: TEndpointResponse);
     [ResourceSuffix('{code_geschaefte}')]
     procedure PutItem(const AContext: TEndpointContext; const ARequest: TEndpointRequest; const AResponse: TEndpointResponse);
@@ -35,6 +36,8 @@ type
 implementation
 
 {%CLASSGROUP 'System.Classes.TPersistent'}
+
+uses uWabstiLib, REST.JSON;
 
 {$R *.dfm}
 
@@ -115,8 +118,66 @@ begin
     raise
   end;
 end;
+
 procedure TzGeschaefteResource.Post(const AContext: TEndpointContext; const ARequest: TEndpointRequest; const AResponse: TEndpointResponse);
+var LStream: TStream; LResultArray: TJSONArray; LResponseObject: TJSONObject;
+    dataStr, aStr: string; myGeschaeftNew, myGeschaeftOld: TGeschaeft; count, i: integer;
+    aSqlStr: TStrings;
 begin
+  if not SameText(ARequest.Body.ContentType, 'application/json') then
+    AResponse.RaiseBadRequest('content type');
+  if not ARequest.Body.TryGetStream(LStream) then
+    AResponse.RaiseBadRequest('no stream');
+
+  LResultArray  := TJSONArray.Create;
+  LResponseObject := TJSONObject.Create;
+  try
+    LResultArray := ARequest.Body.GetArray;
+
+    count := LResultArray.Count;
+    myGeschaeftNew := TGeschaeft.Create;
+    myGeschaeftOld := TGeschaeft.Create;
+    for i := 0 to count-1 do begin
+      dataStr := TJson.JsonEncode(LResultArray.Items[i]);
+      if i = 0 then
+        myGeschaeftOld := TJson.JsonToObject<TGeschaeft>(dataStr)
+      else begin
+        myGeschaeftNew := TJson.JsonToObject<TGeschaeft>(dataStr);
+        LResponseObject := TJSONObject.ParseJSONValue(dataStr) as TJSONObject;
+      end;
+    end;
+
+    aSqlStr := TStringList.Create;
+    aSqlStr.Clear;
+    if myGeschaeftNew.BezHGOffiziell <> myGeschaeftOld.BezHGOffiziell then
+      aSqlStr.Add('    ,BezHGOffiziell  = '+HK+myGeschaeftNew.BezHGOffiziell+HK);
+    if myGeschaeftNew.CodeGeschaefttyp <> myGeschaeftOld.CodeGeschaefttyp then
+      aSqlStr.Add('    ,id_zzgeschaeftstypen  = '+IntToStr(myGeschaeftNew.CodeGeschaefttyp));
+    if aSqlStr.Count > 0 then begin
+      aStr := aSqlStr[0];
+      Delete(aStr,Pos(',',aStr),1);
+      aSqlStr[0] := aStr;
+
+      with TFDQuery.Create(nil) do try
+        Connection := FDConnection;
+        Close;
+        Sql.Clear;
+        Sql.Add('update TGeschaefte');
+        Sql.Add('set');
+        for i := 0 to aSqlStr.Count-1 do
+          Sql.Add(aSqlStr[i]);
+        Sql.Add('where lfnr = '+IntToStr(myGeschaeftOld.Lfnr));
+        ExecSQL;
+      finally
+        Free;
+      end;
+    end;
+
+    AResponse.Body.SetValue(LResponseObject, True);
+  finally
+    LResultArray := nil;
+    LResultArray.Free;
+  end;
 end;
 
 procedure TzGeschaefteResource.PutItem(const AContext: TEndpointContext; const ARequest: TEndpointRequest; const AResponse: TEndpointResponse);

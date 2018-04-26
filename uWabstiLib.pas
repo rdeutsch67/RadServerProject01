@@ -15,6 +15,17 @@ type
     property BFS: integer read fBFS write fBFS;
   end;
 
+  TGeschaeft = class
+  private
+    fLfnr: integer;
+    fBezHGOffiziell: string;
+    fCodeGeschaefttyp: integer;
+  published
+    property Lfnr: integer read fLfnr write fLfnr;
+    property BezHGOffiziell: string read fBezHGOffiziell write fBezHGOffiziell;
+    property CodeGeschaefttyp: integer read fCodeGeschaefttyp write fCodeGeschaefttyp;
+  end;
+
   THttpResponse = class
   private
     fText: string;

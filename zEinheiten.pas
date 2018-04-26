@@ -203,6 +203,7 @@ begin
     LResultArray.Free;
   end;
 end;
+
 procedure TzEinheitenResource.PutItem(const AContext: TEndpointContext; const ARequest: TEndpointRequest; const AResponse: TEndpointResponse);
 var LStream: TStream; LResultObject, LResponseObject: TJSONObject;
     dataStr, aStr: string; myEinheitNew, myEinheitOld: TEinheit; count, i: integer;
